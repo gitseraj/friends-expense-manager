@@ -1,0 +1,193 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum FriendRequestStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+}
+
+enum ExpenseStatus {
+  PENDING
+  CONFIRMED
+  REJECTED
+}
+
+enum ApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum SettlementStatus {
+  PENDING
+  CONFIRMED
+  REJECTED
+}
+
+enum LedgerEntryType {
+  EXPENSE
+  SETTLEMENT
+}
+
+model User {
+  id           String   @id @default(cuid())
+  publicId     String   @unique @default(cuid())
+  name         String
+  email        String   @unique
+  passwordHash String
+  createdAt    DateTime @default(now())
+
+  sentRequests     FriendRequest[] @relation("RequestSender")
+  receivedRequests FriendRequest[] @relation("RequestReceiver")
+  friendshipsA    Friendship[]    @relation("FriendA")
+  friendshipsB    Friendship[]    @relation("FriendB")
+  createdExpenses  Expense[]       @relation("ExpenseCreator")
+  paidExpenses     Expense[]       @relation("ExpensePayer")
+  participations   ExpenseParticipant[]
+  approvals        ExpenseApproval[]
+  createdSettlements Settlement[]  @relation("SettlementCreator")
+  paidSettlements   Settlement[]  @relation("SettlementPayer")
+  receivedSettlements Settlement[] @relation("SettlementReceiver")
+  settlementApprovals SettlementApproval[]
+  ledgerEntries    LedgerEntry[] @relation("LedgerOwner")
+  counterpartEntries LedgerEntry[] @relation("LedgerCounterparty")
+}
+
+model FriendRequest {
+  id         String              @id @default(cuid())
+  senderId   String
+  receiverId String
+  status     FriendRequestStatus @default(PENDING)
+  createdAt  DateTime            @default(now())
+  updatedAt  DateTime            @updatedAt
+
+  sender   User @relation("RequestSender", fields: [senderId], references: [id], onDelete: Cascade)
+  receiver User @relation("RequestReceiver", fields: [receiverId], references: [id], onDelete: Cascade)
+
+  @@index([receiverId, status])
+  @@unique([senderId, receiverId])
+}
+
+model Friendship {
+  id        String   @id @default(cuid())
+  userAId   String
+  userBId   String
+  createdAt DateTime @default(now())
+
+  userA User @relation("FriendA", fields: [userAId], references: [id], onDelete: Cascade)
+  userB User @relation("FriendB", fields: [userBId], references: [id], onDelete: Cascade)
+
+  @@unique([userAId, userBId])
+  @@index([userAId])
+  @@index([userBId])
+}
+
+model Expense {
+  id          String        @id @default(cuid())
+  description String
+  notes       String?
+  totalPaise  Int
+  splitMethod String
+  status      ExpenseStatus @default(PENDING)
+  creatorId   String
+  payerId     String
+  createdAt   DateTime      @default(now())
+  confirmedAt DateTime?
+
+  creator      User                  @relation("ExpenseCreator", fields: [creatorId], references: [id])
+  payer        User                  @relation("ExpensePayer", fields: [payerId], references: [id])
+  participants ExpenseParticipant[]
+  approvals    ExpenseApproval[]
+  ledgerEntries LedgerEntry[]
+
+  @@index([creatorId, createdAt])
+  @@index([status, createdAt])
+}
+
+model ExpenseParticipant {
+  id        String @id @default(cuid())
+  expenseId String
+  userId    String
+  sharePaise Int
+
+  expense Expense @relation(fields: [expenseId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id])
+
+  @@unique([expenseId, userId])
+}
+
+model ExpenseApproval {
+  id         String         @id @default(cuid())
+  expenseId  String
+  userId     String
+  status     ApprovalStatus @default(PENDING)
+  comment    String?
+  decidedAt  DateTime?
+
+  expense Expense @relation(fields: [expenseId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id])
+
+  @@unique([expenseId, userId])
+}
+
+model Settlement {
+  id          String           @id @default(cuid())
+  amountPaise Int
+  note        String?
+  payerId     String
+  receiverId  String
+  creatorId   String
+  status      SettlementStatus @default(PENDING)
+  createdAt   DateTime         @default(now())
+  confirmedAt DateTime?
+
+  payer    User @relation("SettlementPayer", fields: [payerId], references: [id])
+  receiver User @relation("SettlementReceiver", fields: [receiverId], references: [id])
+  creator  User @relation("SettlementCreator", fields: [creatorId], references: [id])
+  approvals SettlementApproval[]
+  ledgerEntries LedgerEntry[]
+
+  @@index([payerId, receiverId, status])
+}
+
+model SettlementApproval {
+  id           String         @id @default(cuid())
+  settlementId String
+  userId       String
+  status       ApprovalStatus @default(PENDING)
+  comment      String?
+  decidedAt    DateTime?
+
+  settlement Settlement @relation(fields: [settlementId], references: [id], onDelete: Cascade)
+  user       User       @relation(fields: [userId], references: [id])
+
+  @@unique([settlementId, userId])
+}
+
+model LedgerEntry {
+  id          String          @id @default(cuid())
+  userId      String
+  counterpartyId String
+  amountPaise Int
+  type        LedgerEntryType
+  expenseId   String?
+  settlementId String?
+  createdAt   DateTime        @default(now())
+
+  user         User        @relation("LedgerOwner", fields: [userId], references: [id])
+  counterparty User        @relation("LedgerCounterparty", fields: [counterpartyId], references: [id])
+  expense      Expense?    @relation(fields: [expenseId], references: [id])
+  settlement   Settlement? @relation(fields: [settlementId], references: [id])
+
+  @@index([userId, counterpartyId])
+  @@index([expenseId])
+  @@index([settlementId])
+}
+

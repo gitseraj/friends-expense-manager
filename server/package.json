@@ -1,0 +1,29 @@
+{
+  "name": "friends-expense-manager-server",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.js",
+    "start": "node src/index.js",
+    "build": "node --check src/index.js && node --check src/routes/auth.js && node --check src/routes/friends.js && node --check src/routes/expenses.js && node --check src/routes/settlements.js",
+    "db:generate": "prisma generate",
+    "db:migrate": "prisma migrate dev",
+    "db:studio": "prisma studio"
+  },
+  "dependencies": {
+    "@prisma/client": "6.19.0",
+    "bcryptjs": "^2.4.3",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "express-rate-limit": "^7.5.0",
+    "helmet": "^8.0.0",
+    "jsonwebtoken": "^9.0.2",
+    "zod": "^3.24.2"
+  },
+  "devDependencies": {
+    "prisma": "6.19.0",
+    "tsx": "^4.19.2"
+  }
+}
